@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>塔台建造训练营：PDCA × DMAIC</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <h1>塔台建造训练营</h1>
+        <p>通过互动决策，实践 <strong>PDCA</strong> 与 <strong>DMAIC</strong> 方法。</p>
+      </header>
+
+      <section class="dashboard">
+        <article>
+          <h2>项目指标</h2>
+          <div class="stats" id="stats"></div>
+        </article>
+        <article>
+          <h2>塔台状态</h2>
+          <div class="tower" id="tower"></div>
+        </article>
+      </section>
+
+      <section class="mode-selector">
+        <h2>选择训练模式</h2>
+        <div class="buttons">
+          <button data-mode="pdca">PDCA 循环</button>
+          <button data-mode="dmaic">DMAIC 流程</button>
+        </div>
+      </section>
+
+      <section id="phasePanel" class="phase-panel hidden">
+        <h2 id="phaseTitle"></h2>
+        <p id="phaseDesc"></p>
+        <div id="choices" class="choices"></div>
+      </section>
+
+      <section id="summary" class="summary hidden"></section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
