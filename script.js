@@ -79,18 +79,50 @@ function clearSelection() {
   });
 }
 
+function clearCheckMarks() {
+  document.querySelectorAll('.sample').forEach((card) => {
+    card.classList.remove('ok', 'bad', 'agitated');
+  });
+  document.querySelectorAll('.bin').forEach((bin) => {
+    bin.classList.remove('warning');
+  });
+}
+
 function selectCard(card) {
   clearSelection();
   state.selectedId = card.dataset.id;
   card.classList.add('selected');
 }
 
+function setMotionForCard(card) {
+  const id = card.dataset.id;
+  const maxX = Math.max(1, arena.clientWidth - CARD_WIDTH);
+  const maxY = Math.max(1, arena.clientHeight - CARD_HEIGHT);
+  state.motions.set(id, {
+    x: rand(0, maxX),
+    y: rand(0, maxY),
+    vx: rand(-1.1, 1.1) || 0.8,
+    vy: rand(-1.1, 1.1) || -0.7,
+    angle: rand(0, 360),
+    vr: rand(-1.4, 1.4)
+  });
+}
+
 function moveCardToBin(card, bin) {
-  card.classList.remove('inArena');
+  card.classList.remove('inArena', 'agitated');
   card.style.left = '';
   card.style.top = '';
   card.style.transform = '';
+  state.motions.delete(card.dataset.id);
   bin.appendChild(card);
+  clearSelection();
+}
+
+function releaseCardToArena(card) {
+  card.classList.add('inArena');
+  card.classList.remove('agitated');
+  arena.appendChild(card);
+  setMotionForCard(card);
   clearSelection();
 }
 
@@ -158,20 +190,9 @@ function buildCard(sample) {
 }
 
 function initMotions() {
-  const width = Math.max(1, arena.clientWidth - CARD_WIDTH);
-  const height = Math.max(1, arena.clientHeight - CARD_HEIGHT);
-
   state.motions.clear();
   arena.querySelectorAll('.sample').forEach((card) => {
-    const id = card.dataset.id;
-    state.motions.set(id, {
-      x: rand(0, width),
-      y: rand(0, height),
-      vx: rand(-1.1, 1.1) || 0.8,
-      vy: rand(-1.1, 1.1) || -0.7,
-      angle: rand(0, 360),
-      vr: rand(-1.4, 1.4)
-    });
+    setMotionForCard(card);
   });
 }
 
@@ -239,12 +260,14 @@ function newLevel() {
 
   renderArena();
   renderBins();
+  clearCheckMarks();
   accEl.textContent = '-';
   roundEl.textContent = String(state.round);
   log(`第 ${state.round} 关开始：细菌会自由移动和旋转，请先点选细菌，再投放到下方分区。`);
 }
 
 function checkAnswer() {
+  clearCheckMarks();
   const cards = document.querySelectorAll('.sample');
   let correct = 0;
 
@@ -258,6 +281,14 @@ function checkAnswer() {
     card.classList.add(ok ? 'ok' : 'bad');
   });
 
+  document.querySelectorAll('.bin').forEach((bin) => {
+    const wrongCards = [...bin.querySelectorAll('.sample.bad')];
+    if (wrongCards.length > 0) {
+      bin.classList.add('warning');
+      wrongCards.forEach((card) => card.classList.add('agitated'));
+    }
+  });
+
   const total = cards.length;
   const acc = total ? correct / total : 0;
   accEl.textContent = `${(acc * 100).toFixed(1)}%`;
@@ -265,11 +296,12 @@ function checkAnswer() {
   if (acc === 1) {
     state.streak += 1;
     state.score += 120;
-    log('完美！你成功忽略干扰因子，按真实物种完成了聚类。');
+    log('完美！所有隔离箱都稳定，无异常躁动。');
   } else {
     state.streak = 0;
     state.score += Math.round(acc * 80);
-    log(`本关答对 ${correct}/${total}。提示：先看轮廓、再看连接方式、最后看主色调。`);
+    const warnCount = document.querySelectorAll('.bin.warning').length;
+    log(`本关答对 ${correct}/${total}。有 ${warnCount} 个隔离箱发出警告（箱内出现混错物种并躁动）。`);
   }
 
   state.round += 1;
@@ -294,6 +326,16 @@ function giveHint() {
 document.querySelector('#newBtn').addEventListener('click', newLevel);
 document.querySelector('#checkBtn').addEventListener('click', checkAnswer);
 document.querySelector('#hintBtn').addEventListener('click', giveHint);
+arena.addEventListener('click', () => {
+  if (!state.selectedId) return;
+  const card = document.querySelector(`.sample[data-id="${state.selectedId}"]`);
+  if (!card) return;
+  const inBin = card.parentElement?.classList.contains('bin');
+  if (inBin) {
+    releaseCardToArena(card);
+    log('已将选中的细菌释放回主区域。');
+  }
+});
 window.addEventListener('beforeunload', stopAnimation);
 
 newLevel();
