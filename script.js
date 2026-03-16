@@ -1,21 +1,24 @@
 const factors = {
-  color: ['红', '绿', '黄'],
-  size: ['大', '小'],
-  texture: ['光滑', '斑点']
+  shape: ['round', 'rod'],
+  grouping: ['single', 'chain'],
+  coreColor: ['cyan', 'magenta'],
+  speed: ['slow', 'fast'],
+  glow: ['low', 'high'],
+  grain: ['smooth', 'grainy']
 };
 
-const emojis = {
-  红: '🍎',
-  绿: '🥝',
-  黄: '🍋'
-};
+const CARD_WIDTH = 64;
+const CARD_HEIGHT = 56;
 
 const state = {
   round: 1,
   score: 0,
   streak: 0,
   level: 'normal',
-  fruits: []
+  samples: [],
+  selectedId: null,
+  motions: new Map(),
+  rafId: null
 };
 
 const roundEl = document.querySelector('#round');
@@ -23,115 +26,236 @@ const scoreEl = document.querySelector('#score');
 const streakEl = document.querySelector('#streak');
 const accEl = document.querySelector('#acc');
 const logEl = document.querySelector('#log');
+const arena = document.querySelector('#arena');
 const binRow = document.querySelector('#binRow');
-const pool = document.querySelector('#pool');
 const levelSel = document.querySelector('#levelSel');
 
 function log(msg) {
   logEl.textContent = `${msg}\n${logEl.textContent}`.trim();
 }
 
-function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
 
-function makeKey(f) {
-  return `${f.color}-${f.size}-${f.texture}`;
+function rand(min, max) {
+  return Math.random() * (max - min) + min;
+}
+
+function speciesKey(b) {
+  return `${b.shape}-${b.grouping}-${b.coreColor}`;
 }
 
 function allBins() {
   const out = [];
-  for (const color of factors.color) {
-    for (const size of factors.size) {
-      for (const texture of factors.texture) {
-        out.push({ color, size, texture, key: `${color}-${size}-${texture}` });
+  for (const shape of factors.shape) {
+    for (const grouping of factors.grouping) {
+      for (const coreColor of factors.coreColor) {
+        out.push({ key: `${shape}-${grouping}-${coreColor}` });
       }
     }
   }
   return out;
 }
 
-function createFruit(id) {
-  const fruit = {
+function createSample(id) {
+  const sample = {
     id,
-    color: pick(factors.color),
-    size: pick(factors.size),
-    texture: pick(factors.texture)
+    shape: pick(factors.shape),
+    grouping: pick(factors.grouping),
+    coreColor: pick(factors.coreColor),
+    speed: pick(factors.speed),
+    glow: pick(factors.glow),
+    grain: pick(factors.grain)
   };
-  fruit.answer = makeKey(fruit);
-  return fruit;
+  sample.answer = speciesKey(sample);
+  return sample;
 }
 
-function fruitLabel(fruit) {
-  return `${emojis[fruit.color]} ${fruit.color}${fruit.size}${fruit.texture}`;
+function clearSelection() {
+  state.selectedId = null;
+  document.querySelectorAll('.sample.selected').forEach((el) => {
+    el.classList.remove('selected');
+  });
+}
+
+function selectCard(card) {
+  clearSelection();
+  state.selectedId = card.dataset.id;
+  card.classList.add('selected');
+}
+
+function moveCardToBin(card, bin) {
+  card.classList.remove('inArena');
+  card.style.left = '';
+  card.style.top = '';
+  card.style.transform = '';
+  bin.appendChild(card);
+  clearSelection();
 }
 
 function renderBins() {
   binRow.innerHTML = '';
-  const bins = allBins();
-  bins.forEach((b) => {
+  allBins().forEach((b) => {
     const div = document.createElement('div');
     div.className = 'bin';
     div.dataset.bin = b.key;
-    div.innerHTML = `<div class="binTitle">${b.color} + ${b.size} + ${b.texture}</div>`;
 
-    div.addEventListener('dragover', (e) => e.preventDefault());
-    div.addEventListener('drop', (e) => {
-      e.preventDefault();
-      const id = e.dataTransfer.getData('text/plain');
-      const card = document.querySelector(`[data-id="${id}"]`);
-      if (card) div.appendChild(card);
+    div.addEventListener('click', () => {
+      if (!state.selectedId) {
+        log('请先在主界面点击一个细菌，再点击下方分区。');
+        return;
+      }
+      const card = document.querySelector(`.sample[data-id="${state.selectedId}"]`);
+      if (!card) return;
+      moveCardToBin(card, div);
     });
 
     binRow.appendChild(div);
   });
 }
 
-function renderPool() {
-  pool.innerHTML = '';
-  state.fruits.forEach((fruit) => {
-    const card = document.createElement('div');
-    card.className = 'fruit';
-    card.draggable = true;
-    card.dataset.id = String(fruit.id);
-    card.dataset.answer = fruit.answer;
-    card.textContent = fruitLabel(fruit);
+function buildBacteriaVisual(sample) {
+  const visual = document.createElement('div');
+  visual.className = 'bacteriaVisual';
 
-    card.addEventListener('dragstart', (e) => {
-      e.dataTransfer.setData('text/plain', String(fruit.id));
-    });
+  const body = document.createElement('div');
+  body.className = `bacteriaBody ${sample.shape} ${sample.coreColor} ${sample.glow} ${sample.grain}`;
+  visual.appendChild(body);
 
-    pool.appendChild(card);
+  if (sample.grouping === 'chain') {
+    const clone = body.cloneNode(true);
+    clone.classList.add('chainMate');
+    visual.appendChild(clone);
+  }
+
+  if (sample.speed === 'fast') {
+    const trail = document.createElement('div');
+    trail.className = 'speedTrail';
+    visual.appendChild(trail);
+  }
+
+  return visual;
+}
+
+function buildCard(sample) {
+  const card = document.createElement('div');
+  card.className = 'sample inArena';
+  card.dataset.id = String(sample.id);
+  card.dataset.answer = sample.answer;
+
+  card.appendChild(buildBacteriaVisual(sample));
+
+  card.addEventListener('click', () => {
+    if (state.selectedId === card.dataset.id) {
+      clearSelection();
+      return;
+    }
+    selectCard(card);
   });
+
+  return card;
+}
+
+function initMotions() {
+  const width = Math.max(1, arena.clientWidth - CARD_WIDTH);
+  const height = Math.max(1, arena.clientHeight - CARD_HEIGHT);
+
+  state.motions.clear();
+  arena.querySelectorAll('.sample').forEach((card) => {
+    const id = card.dataset.id;
+    state.motions.set(id, {
+      x: rand(0, width),
+      y: rand(0, height),
+      vx: rand(-1.1, 1.1) || 0.8,
+      vy: rand(-1.1, 1.1) || -0.7,
+      angle: rand(0, 360),
+      vr: rand(-1.4, 1.4)
+    });
+  });
+}
+
+function animateArena() {
+  const maxX = Math.max(1, arena.clientWidth - CARD_WIDTH);
+  const maxY = Math.max(1, arena.clientHeight - CARD_HEIGHT);
+
+  state.motions.forEach((m, id) => {
+    const card = arena.querySelector(`.sample[data-id="${id}"]`);
+    if (!card) return;
+
+    m.x += m.vx;
+    m.y += m.vy;
+    m.angle += m.vr;
+
+    if (m.x <= 0 || m.x >= maxX) {
+      m.vx *= -1;
+      m.x = Math.min(Math.max(0, m.x), maxX);
+    }
+    if (m.y <= 0 || m.y >= maxY) {
+      m.vy *= -1;
+      m.y = Math.min(Math.max(0, m.y), maxY);
+    }
+
+    card.style.left = `${m.x}px`;
+    card.style.top = `${m.y}px`;
+    card.style.transform = `rotate(${m.angle}deg)`;
+  });
+
+  state.rafId = requestAnimationFrame(animateArena);
+}
+
+function stopAnimation() {
+  if (state.rafId) {
+    cancelAnimationFrame(state.rafId);
+    state.rafId = null;
+  }
+}
+
+function startAnimation() {
+  stopAnimation();
+  initMotions();
+  animateArena();
+}
+
+function renderArena() {
+  arena.innerHTML = '';
+  state.samples.forEach((sample) => {
+    arena.appendChild(buildCard(sample));
+  });
+  startAnimation();
 }
 
 function newLevel() {
   state.level = levelSel.value;
-  let total = 9;
-  if (state.level === 'easy') total = 6;
-  if (state.level === 'hard') total = 12;
+  let total = 12;
+  if (state.level === 'easy') total = 8;
+  if (state.level === 'hard') total = 16;
 
-  state.fruits = [];
-  for (let i = 1; i <= total; i++) {
-    state.fruits.push(createFruit(i));
+  state.samples = [];
+  state.selectedId = null;
+  for (let i = 1; i <= total; i += 1) {
+    state.samples.push(createSample(i));
   }
 
+  renderArena();
   renderBins();
-  renderPool();
   accEl.textContent = '-';
   roundEl.textContent = String(state.round);
-  log(`第 ${state.round} 关开始：请根据“颜色+大小+纹理”三因子分拣 ${total} 个水果。`);
+  log(`第 ${state.round} 关开始：细菌会自由移动和旋转，请先点选细菌，再投放到下方分区。`);
 }
 
 function checkAnswer() {
-  const cards = document.querySelectorAll('.fruit');
+  const cards = document.querySelectorAll('.sample');
   let correct = 0;
 
   cards.forEach((card) => {
+    card.classList.remove('ok', 'bad');
     const parent = card.parentElement;
     const expected = card.dataset.answer;
-    const got = parent?.dataset.bin || 'pool';
+    const got = parent?.dataset.bin || 'arena';
     const ok = expected === got;
     if (ok) correct += 1;
-    card.style.borderColor = ok ? '#16a34a' : '#dc2626';
+    card.classList.add(ok ? 'ok' : 'bad');
   });
 
   const total = cards.length;
@@ -140,12 +264,12 @@ function checkAnswer() {
 
   if (acc === 1) {
     state.streak += 1;
-    state.score += 100;
-    log('太棒了！全部分对，说明你已经掌握了细粒度特征拆分。');
+    state.score += 120;
+    log('完美！你成功忽略干扰因子，按真实物种完成了聚类。');
   } else {
     state.streak = 0;
-    state.score += Math.round(acc * 60);
-    log(`本关答对 ${correct}/${total}。先看错题：是不是漏看了“大小”或“纹理”？`);
+    state.score += Math.round(acc * 80);
+    log(`本关答对 ${correct}/${total}。提示：先看轮廓、再看连接方式、最后看主色调。`);
   }
 
   state.round += 1;
@@ -155,19 +279,21 @@ function checkAnswer() {
 }
 
 function giveHint() {
-  const card = document.querySelector('#pool .fruit') || document.querySelector('.fruit');
+  const card = document.querySelector('#arena .sample') || document.querySelector('.sample');
   if (!card) {
-    log('没有可提示的水果。先开始新一关吧。');
+    log('没有可提示的样本。先开始新一关吧。');
     return;
   }
 
-  const f = state.fruits.find((x) => String(x.id) === card.dataset.id);
-  if (!f) return;
-  log(`提示：${fruitLabel(f)} 应进入「${f.color} + ${f.size} + ${f.texture}」这个箱子。`);
+  const sample = state.samples.find((x) => String(x.id) === card.dataset.id);
+  if (!sample) return;
+
+  log(`提示：样本 ${sample.id} 的“轮廓 + 连接方式 + 主色调”决定它的归类，速度/荧光/颗粒是干扰。`);
 }
 
 document.querySelector('#newBtn').addEventListener('click', newLevel);
 document.querySelector('#checkBtn').addEventListener('click', checkAnswer);
 document.querySelector('#hintBtn').addEventListener('click', giveHint);
+window.addEventListener('beforeunload', stopAnimation);
 
 newLevel();

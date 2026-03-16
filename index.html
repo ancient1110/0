@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>因子小侦探：水果分拣大挑战</title>
+  <title>因子小侦探：细菌分拣实验室</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <main class="app">
     <header class="panel">
-      <h1>因子小侦探：水果分拣大挑战</h1>
-      <p class="subtitle">目标：把水果按“颜色 + 大小 + 纹理”三个因子拆分，学会细粒度特征。</p>
+      <h1>因子小侦探：细菌分拣实验室</h1>
+      <p class="subtitle">目标：细菌会在上方大区域里自由移动和旋转，选中后投放到下方空培养皿分区。</p>
     </header>
 
     <section class="panel controls">
@@ -20,9 +20,9 @@
       <label>
         难度
         <select id="levelSel">
-          <option value="easy">简单（6个水果）</option>
-          <option value="normal" selected>普通（9个水果）</option>
-          <option value="hard">困难（12个水果）</option>
+          <option value="easy">简单（8个样本）</option>
+          <option value="normal" selected>普通（12个样本）</option>
+          <option value="hard">困难（16个样本）</option>
         </select>
       </label>
     </section>
@@ -35,25 +35,26 @@
     </section>
 
     <section class="panel boardWrap">
-      <div class="bins">
-        <h2>分拣箱（按“颜色+大小+纹理”）</h2>
-        <div class="binRow" id="binRow"></div>
+      <div class="arenaWrap">
+        <h2>主界面混合样本（约半屏，无分割，自由移动）</h2>
+        <div id="arena"></div>
       </div>
 
-      <div class="pool">
-        <h2>待分拣水果</h2>
-        <div id="pool"></div>
+      <div class="bins">
+        <h2>下方培养皿分区（无标签）</h2>
+        <div class="binRow" id="binRow"></div>
       </div>
     </section>
 
     <section class="panel">
-      <h2>学习卡：什么是因子拆分？</h2>
+      <h2>实验规则</h2>
       <ul>
-        <li><strong>因子</strong>：描述事物的维度，比如颜色、大小、纹理。</li>
-        <li><strong>细粒度特征</strong>：不是只看“像不像苹果”，而是看更细的小特征。</li>
-        <li><strong>拆分方法</strong>：先看颜色，再看大小，最后看纹理，减少混淆。</li>
+        <li><strong>总共有 6 个因子</strong>：其中 3 个是物种决定因子，3 个是干扰因子。</li>
+        <li><strong>决定因子（明显）</strong>：轮廓、连接方式、主色调。</li>
+        <li><strong>干扰因子（迷惑）</strong>：游动速度、荧光强弱、表面颗粒。它们不决定物种。</li>
+        <li><strong>操作方式</strong>：样本会在上方区域自由移动和旋转；点击样本卡选中，再点击某个空分区进行投放。</li>
       </ul>
-      <pre id="log" class="log">欢迎！先点“新一关”，把水果拖到对应分拣箱。</pre>
+      <pre id="log" class="log">欢迎来到实验室！先点“新一关”，观察上方自由移动的细菌，再选中并投放到下方分区。</pre>
     </section>
   </main>
 
