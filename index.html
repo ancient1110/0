@@ -20,29 +20,29 @@
     </header>
 
     <section class="panel controls">
-      <button id="newBtn">新一关</button>
+      <div class="difficultyBar" id="difficultyBar">
+        <span>难度：</span>
+        <button class="diffBtn" data-level="easy">简单</button>
+        <button class="diffBtn active" data-level="normal">普通</button>
+        <button class="diffBtn" data-level="hard">困难</button>
+        <button class="diffBtn" data-level="expert">专家</button>
+      </div>
+      <button id="refreshBtn">刷新样本</button>
       <button id="checkBtn">检查答案</button>
-      <button id="hintBtn">给我提示</button>
-      <label>
-        难度
-        <select id="levelSel">
-          <option value="easy">简单（8个样本）</option>
-          <option value="normal" selected>普通（12个样本）</option>
-          <option value="hard">困难（16个样本）</option>
-        </select>
-      </label>
     </section>
 
     <section class="panel stats">
-      <div>关卡：<strong id="round">1</strong></div>
+      <div>当前难度：<strong id="currentLevel">普通</strong></div>
       <div>得分：<strong id="score">0</strong></div>
-      <div>连续全对：<strong id="streak">0</strong></div>
-      <div>本关正确率：<strong id="acc">-</strong></div>
+      <div>本次正确率：<strong id="acc">-</strong></div>
     </section>
 
     <section class="panel boardWrap">
       <div class="arenaWrap">
         <h2>主界面混合样本（约半屏，无分割，自由移动）</h2>
+        <div id="perfectBanner" class="perfectOverlay" hidden>
+          ✅ 全域校验完成！已排除全部隐患，实验舱状态：绝对纯净。
+        </div>
         <div id="arena"></div>
       </div>
 
@@ -50,17 +50,6 @@
         <h2>下方培养皿分区（无标签）</h2>
         <div class="binRow" id="binRow"></div>
       </div>
-    </section>
-
-    <section class="panel">
-      <h2>实验规则</h2>
-      <ul>
-        <li><strong>总共有 6 个因子</strong>：其中 3 个是物种决定因子，3 个是干扰因子。</li>
-        <li><strong>决定因子（明显）</strong>：轮廓、连接方式、主色调。</li>
-        <li><strong>干扰因子（迷惑）</strong>：游动速度、荧光强弱、表面颗粒。它们不决定物种。</li>
-        <li><strong>操作方式</strong>：样本会在上方区域自由移动和旋转；点击样本卡选中，再点击某个空分区进行投放。若投错，可再次选中并点击上方主区域释放回去。</li>
-      </ul>
-      <pre id="log" class="log">欢迎来到实验室！先点“新一关”，观察上方自由移动的细菌，再选中并投放到下方分区。</pre>
     </section>
   </main>
 
