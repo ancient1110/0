@@ -272,6 +272,7 @@ function checkAnswer() {
   let correct = 0;
 
   cards.forEach((card) => {
+    card.classList.remove('ok', 'bad');
     const parent = card.parentElement;
     const expected = card.dataset.answer;
     const got = parent?.dataset.bin || 'arena';

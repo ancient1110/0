@@ -73,6 +73,7 @@ button:hover { background: #dbeafe; }
   color: #b91c1c;
   font-weight: 700;
 }
+.bin:hover { border-color: #2563eb; }
 
 .sample {
   user-select: none;
