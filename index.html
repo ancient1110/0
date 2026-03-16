@@ -31,10 +31,6 @@
       <button id="checkBtn">检查答案</button>
     </section>
 
-    <section id="perfectBanner" class="panel perfectBanner" hidden>
-      ✅ 完全准确！已全部正确分类，请点击“刷新样本”开始下一轮。
-    </section>
-
     <section class="panel stats">
       <div>当前难度：<strong id="currentLevel">普通</strong></div>
       <div>得分：<strong id="score">0</strong></div>
@@ -44,6 +40,9 @@
     <section class="panel boardWrap">
       <div class="arenaWrap">
         <h2>主界面混合样本（约半屏，无分割，自由移动）</h2>
+        <div id="perfectBanner" class="perfectOverlay" hidden>
+          ✅ 全域校验完成！已排除全部隐患，实验舱状态：绝对纯净。
+        </div>
         <div id="arena"></div>
       </div>
 
@@ -51,11 +50,6 @@
         <h2>下方培养皿分区（无标签）</h2>
         <div class="binRow" id="binRow"></div>
       </div>
-    </section>
-
-    <section class="panel">
-      <h2>实验记录</h2>
-      <pre id="log" class="log">欢迎来到实验室！请先选择难度，然后观察上方自由移动的细菌，再选中并投放到下方分区。</pre>
     </section>
   </main>
 

@@ -6,11 +6,17 @@ const factors = {
   glow: ['low', 'high']
 };
 
+const interferenceOptions = {
+  tintShift: ['tintCool', 'tintWarm'],
+  morph: ['morphLean', 'morphWide'],
+  size: ['sizeSm', 'sizeLg']
+};
+
 const difficultyConfig = {
-  easy: { label: '简单', total: 8, speciesCount: 3 },
-  normal: { label: '普通', total: 12, speciesCount: 4 },
-  hard: { label: '困难', total: 16, speciesCount: 6 },
-  expert: { label: '专家', total: 20, speciesCount: 8 }
+  easy: { label: '简单', total: 8, speciesCount: 3, interferenceCount: 1, binExtra: 1 },
+  normal: { label: '普通', total: 12, speciesCount: 3, interferenceCount: 2, binExtra: 2 },
+  hard: { label: '困难', total: 20, speciesCount: 4, interferenceCount: 3, binExtra: 1 },
+  expert: { label: '专家', total: 24, speciesCount: 4, interferenceCount: 4, binExtra: 2 }
 };
 
 const CARD_WIDTH = 64;
@@ -28,7 +34,6 @@ const state = {
 
 const scoreEl = document.querySelector('#score');
 const accEl = document.querySelector('#acc');
-const logEl = document.querySelector('#log');
 const arena = document.querySelector('#arena');
 const binRow = document.querySelector('#binRow');
 const protocolWarnEl = document.querySelector('#protocolWarn');
@@ -36,7 +41,7 @@ const currentLevelEl = document.querySelector('#currentLevel');
 const perfectBannerEl = document.querySelector('#perfectBanner');
 
 function log(msg) {
-  logEl.textContent = `${msg}\n${logEl.textContent}`.trim();
+  console.info(msg);
 }
 
 function checkProtocol() {
@@ -48,6 +53,10 @@ function checkProtocol() {
 
 function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function pickSome(arr, count) {
+  return [...arr].sort(() => Math.random() - 0.5).slice(0, count);
 }
 
 function rand(min, max) {
@@ -138,9 +147,9 @@ function checkRealTimePurity(bin) {
   }
 }
 
-function renderBins() {
+function renderBins(binCount) {
   binRow.innerHTML = '';
-  for (let i = 0; i < 12; i += 1) {
+  for (let i = 0; i < binCount; i += 1) {
     const div = document.createElement('div');
     div.className = 'bin';
     div.addEventListener('click', () => {
@@ -158,7 +167,16 @@ function buildBacteriaVisual(sample) {
   visual.className = 'bacteriaVisual';
 
   const body = document.createElement('div');
-  body.className = `bacteriaBody ${sample.shape} ${sample.coreColor} ${sample.glow} ${sample.grain}`;
+  body.className = [
+    'bacteriaBody',
+    sample.shape,
+    sample.coreColor,
+    sample.glow,
+    sample.grain,
+    sample.tintShift,
+    sample.morph,
+    sample.sizeVariant
+  ].join(' ');
   visual.appendChild(body);
 
   if (sample.grouping === 'chain') {
@@ -221,6 +239,27 @@ function startAnimation() {
   animateArena();
 }
 
+function applyInterference(baseSample, interferenceCount) {
+  const enhanced = {
+    ...baseSample,
+    tintShift: '',
+    morph: '',
+    sizeVariant: ''
+  };
+
+  const pool = ['glow', 'tintShift', 'morph', 'size'];
+  const active = pickSome(pool, Math.min(interferenceCount, pool.length));
+
+  active.forEach((item) => {
+    if (item === 'glow') enhanced.glow = pick(factors.glow);
+    if (item === 'tintShift') enhanced.tintShift = pick(interferenceOptions.tintShift);
+    if (item === 'morph') enhanced.morph = pick(interferenceOptions.morph);
+    if (item === 'size') enhanced.sizeVariant = pick(interferenceOptions.size);
+  });
+
+  return enhanced;
+}
+
 function refreshSamples() {
   const config = difficultyConfig[state.level];
   state.samples = [];
@@ -233,7 +272,7 @@ function refreshSamples() {
 
   for (let i = 1; i <= config.total; i += 1) {
     const sp = i <= config.speciesCount ? chosenSpecies[i - 1] : pick(chosenSpecies);
-    state.samples.push({
+    const baseSample = {
       id: i,
       shape: sp.shape,
       grouping: sp.grouping,
@@ -241,12 +280,14 @@ function refreshSamples() {
       grain: sp.grain,
       glow: pick(factors.glow),
       answer: `${sp.shape}-${sp.grouping}-${sp.coreColor}-${sp.grain}`
-    });
+    };
+
+    state.samples.push(applyInterference(baseSample, config.interferenceCount));
   }
 
   state.samples.sort(() => Math.random() - 0.5);
 
-  renderBins();
+  renderBins(config.speciesCount + config.binExtra);
   arena.innerHTML = '';
   state.samples.forEach((sample) => arena.appendChild(buildCard(sample)));
   startAnimation();
@@ -254,7 +295,7 @@ function refreshSamples() {
   clearCheckMarks();
   accEl.textContent = '-';
   currentLevelEl.textContent = config.label;
-  log(`已刷新样本：当前为【${config.label}】难度。请把四个关键特征完全一致的细菌放在同一分区。`);
+  log(`已刷新样本：${config.label}（样本${config.total}/物种${config.speciesCount}/干扰项${config.interferenceCount}）`);
 }
 
 function checkAnswer() {
@@ -305,7 +346,7 @@ function checkAnswer() {
       state.levelCompleted = true;
     }
     perfectBannerEl.hidden = false;
-    log('✅ 完全准确！所有细菌都已正确归类。请点击“刷新样本”继续。');
+    log('✅ 全域校验完成！已排除全部隐患，实验舱状态：绝对纯净。');
   } else {
     perfectBannerEl.hidden = true;
     let msg = `当前分类进度 ${(acc * 100).toFixed(0)}%。`;

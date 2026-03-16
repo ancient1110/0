@@ -52,17 +52,27 @@ button:hover { background: #dbeafe; }
   border-color: #1d4ed8;
 }
 
-.perfectBanner {
-  border-color: #16a34a;
-  background: #f0fdf4;
-  color: #166534;
-  font-weight: 800;
-  text-align: center;
-  font-size: 18px;
-}
-
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
 .boardWrap { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.arenaWrap { position: relative; }
+
+.perfectOverlay {
+  position: absolute;
+  z-index: 5;
+  left: 16px;
+  right: 16px;
+  top: 48px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  border: 2px solid #22c55e;
+  background: linear-gradient(90deg, rgba(20,184,166,0.95) 0%, rgba(22,163,74,0.95) 100%);
+  color: #ecfeff;
+  font-size: 20px;
+  font-weight: 900;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(22, 163, 74, 0.35);
+  pointer-events: none;
+}
 
 #arena {
   position: relative;
@@ -162,20 +172,25 @@ button:hover { background: #dbeafe; }
   background-size: 5px 5px;
 }
 
+/* 干扰项：微弱色差（不改变主色类别） */
+.bacteriaBody.tintCool { filter: hue-rotate(-8deg) saturate(0.95); }
+.bacteriaBody.tintWarm { filter: hue-rotate(8deg) saturate(1.05); }
+
+/* 干扰项：微弱形变 */
+.bacteriaBody.morphLean { transform: scaleX(0.9) scaleY(1.05); }
+.bacteriaBody.morphWide { transform: scaleX(1.08) scaleY(0.95); }
+
+/* 干扰项：大小差异 */
+.bacteriaBody.sizeSm { width: 22px; height: 22px; }
+.bacteriaBody.rod.sizeSm { width: 25px; height: 16px; }
+.bacteriaBody.sizeLg { width: 26px; height: 26px; }
+.bacteriaBody.rod.sizeLg { width: 31px; height: 20px; }
+
 .chainMate {
   margin-left: -6px;
   z-index: 1;
 }
 
-.log {
-  margin: 0;
-  min-height: 90px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px;
-  white-space: pre-wrap;
-  background: #f9fafb;
-}
 
 @keyframes microbeAgitated {
   0% { transform: translate(0, 0) rotate(0deg); }
