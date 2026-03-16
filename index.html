@@ -8,6 +8,12 @@
 </head>
 <body>
   <main class="app">
+    <section id="protocolWarn" class="panel protocolWarn" hidden>
+      检测到你正在用 <code>file://</code> 直接打开页面。请改用本地 HTTP 服务（例如
+      <code>python3 -m http.server 4173</code>）并通过
+      <code>http://localhost:4173</code> 访问，避免浏览器的本地文件同源安全限制。
+    </section>
+
     <header class="panel">
       <h1>因子小侦探：细菌分拣实验室</h1>
       <p class="subtitle">目标：细菌会在上方大区域里自由移动和旋转，选中后投放到下方空培养皿分区。</p>
