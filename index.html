@@ -3,81 +3,57 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>塔台质控局 (Tower QC Bureau)</title>
+  <title>因子小侦探：水果分拣大挑战</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <main class="app">
-    <header>
-      <h1>塔台质控局</h1>
-      <p class="subtitle">纯文本/数值逻辑驱动的 PDCA + DMAIC 教学桌游原型</p>
+    <header class="panel">
+      <h1>因子小侦探：水果分拣大挑战</h1>
+      <p class="subtitle">目标：把水果按“颜色 + 大小 + 纹理”三个因子拆分，学会细粒度特征。</p>
     </header>
 
-    <section class="stats">
-      <div>阶段：<strong id="phaseLabel">第一阶段（PDCA）</strong></div>
-      <div>金币预算：<strong id="budgetLabel">10000</strong></div>
-      <div>最高高度：<strong id="recordLabel">0</strong></div>
+    <section class="panel controls">
+      <button id="newBtn">新一关</button>
+      <button id="checkBtn">检查答案</button>
+      <button id="hintBtn">给我提示</button>
+      <label>
+        难度
+        <select id="levelSel">
+          <option value="easy">简单（6个水果）</option>
+          <option value="normal" selected>普通（9个水果）</option>
+          <option value="hard">困难（12个水果）</option>
+        </select>
+      </label>
     </section>
 
-    <section class="panel" id="phase1Panel">
-      <h2>第一阶段：PDCA 盲盒试错</h2>
-      <p>为 3 层塔台选择材料（只显示名称和成本），然后执行建造。</p>
-      <div class="slots" id="phase1Slots"></div>
-      <button id="buildBtn">执行建造</button>
-      <button id="unlockPhase2Btn">进入第二阶段</button>
+    <section class="panel stats">
+      <div>关卡：<strong id="round">1</strong></div>
+      <div>得分：<strong id="score">0</strong></div>
+      <div>连续全对：<strong id="streak">0</strong></div>
+      <div>本关正确率：<strong id="acc">-</strong></div>
     </section>
 
-    <section class="panel hidden" id="phase2Panel">
-      <h2>第二阶段：DMAIC 质量迷局</h2>
-      <p>目标：5 层，总高度 &gt; 100，成本 &lt; 5000，抗风值 &gt; 50。</p>
+    <section class="panel boardWrap">
+      <div class="bins">
+        <h2>分拣箱（按“颜色+大小+纹理”）</h2>
+        <div class="binRow" id="binRow"></div>
+      </div>
 
-      <details open>
-        <summary>D - Define（提取 CTQ）</summary>
-        <p>输入你提取的关键指标（任意顺序，逗号分隔），例如：高度&gt;100,成本&lt;5000,抗风&gt;50</p>
-        <input id="ctqInput" placeholder="请输入 CTQ" />
-        <button id="ctqBtn">提交 CTQ</button>
-        <div id="ctqResult"></div>
-      </details>
-
-      <details>
-        <summary>M - Measure（材料鉴定，50 金币/次）</summary>
-        <div class="row">
-          <select id="measureSelect"></select>
-          <button id="measureBtn">鉴定材料</button>
-        </div>
-        <pre id="measureLog" class="log"></pre>
-      </details>
-
-      <details>
-        <summary>A - Analyze（失败记录推理）</summary>
-        <pre class="log" id="analysisData"></pre>
-        <p>问题：根本原因除了底层承重，还在于？</p>
-        <label><input type="radio" name="rootCause" value="a" /> 使用最贵材料</label>
-        <label><input type="radio" name="rootCause" value="b" /> 顶层重量应尽量低，减小风力杠杆效应</label>
-        <label><input type="radio" name="rootCause" value="c" /> 塔层越多越稳</label>
-        <button id="analyzeBtn">提交分析</button>
-        <div id="analyzeResult"></div>
-      </details>
-
-      <details>
-        <summary>I - Improve（搭建最优方案）</summary>
-        <div class="slots" id="phase2Slots"></div>
-        <button id="finalBuildBtn">最终施工（500 金币）</button>
-        <div id="finalBuildResult"></div>
-      </details>
-
-      <details>
-        <summary>C - Control（波动控制）</summary>
-        <p>可购买 SOP 卡（200 金币），将随机公差从 ±15 降低到 ±2。</p>
-        <button id="buySopBtn">购买 SOP 卡</button>
-        <button id="massRunBtn">批量生产 100 座塔</button>
-        <div id="controlResult"></div>
-      </details>
+      <div class="pool">
+        <h2>待分拣水果</h2>
+        <div id="pool"></div>
+      </div>
     </section>
 
     <section class="panel">
-      <h2>系统战报</h2>
-      <pre id="battleLog" class="log"></pre>
+      <h2>学习卡：什么是因子拆分？</h2>
+      <ul>
+        <li><strong>因子</strong>：描述事物的维度，比如颜色、大小、纹理。</li>
+        <li><strong>细粒度特征</strong>：不是只看“像不像苹果”，而是看更细的小特征。</li>
+        <li><strong>拆分方法</strong>：先看颜色，再看大小，最后看纹理，减少混淆。</li>
+      </ul>
+      <pre id="log" class="log">欢迎！先点“新一关”，把水果拖到对应分拣箱。</pre>
     </section>
   </main>
 
