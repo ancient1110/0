@@ -45,8 +45,6 @@ function allBins() {
         out.push({ color, size, texture, key: `${color}-${size}-${texture}` });
       }
     }
-    const s = (b - a) / Math.max(a, b || 1);
-    total += Number.isFinite(s) ? s : 0;
   }
   return out;
 }
