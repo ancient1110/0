@@ -1,202 +1,276 @@
-const materialDb = {
-  wood: { name: '木材', h: 15, w: 10, s: 20, wind: 8, cost: 200 },
-  steel: { name: '普通钢', h: 25, w: 18, s: 40, wind: 16, cost: 500 },
-  concrete: { name: '混凝土', h: 20, w: 20, s: 70, wind: 24, cost: 650 },
-  carbon: { name: '碳纤维', h: 22, w: 5, s: 35, wind: 22, cost: 900 },
-  titanium: { name: '钛合金', h: 25, w: 6, s: 80, wind: 28, cost: 1000 },
-  adhesive: { name: '特种胶复材', h: 18, w: 4, s: 30, wind: 20, cost: 700 },
-  alu: { name: '航空铝', h: 20, w: 7, s: 45, wind: 21, cost: 750 },
-  bamboo: { name: '竹基复材', h: 16, w: 9, s: 28, wind: 14, cost: 350 },
-  basalt: { name: '玄武岩纤维', h: 20, w: 8, s: 50, wind: 24, cost: 820 },
-  ceramic: { name: '陶瓷芯材', h: 17, w: 6, s: 38, wind: 19, cost: 680 }
-};
+const canvas = document.querySelector('#board');
+const ctx = canvas.getContext('2d');
+const logBox = document.querySelector('#log');
+
+const roundLabel = document.querySelector('#roundLabel');
+const inertiaLabel = document.querySelector('#inertiaLabel');
+const qualityLabel = document.querySelector('#qualityLabel');
+const accuracyLabel = document.querySelector('#accuracyLabel');
+const difficultySelect = document.querySelector('#difficulty');
+
+const palette = ['#22d3ee', '#f97316', '#a78bfa', '#34d399', '#f43f5e'];
 
 const state = {
-  phase: 1,
-  budget: 10000,
-  record: 0,
-  ctqDone: false,
-  analyzeDone: false,
-  sop: false,
-  measured: new Set(),
-  latestFinalTower: null
+  points: [],
+  centroids: [],
+  k: 3,
+  round: 1,
+  assigned: false,
+  showTruth: false,
+  dragging: null
 };
 
-const battleLog = document.querySelector('#battleLog');
-const phase1Slots = document.querySelector('#phase1Slots');
-const phase2Slots = document.querySelector('#phase2Slots');
-const phaseLabel = document.querySelector('#phaseLabel');
-const budgetLabel = document.querySelector('#budgetLabel');
-const recordLabel = document.querySelector('#recordLabel');
-
 function log(msg) {
-  battleLog.textContent = `${msg}\n${battleLog.textContent}`.trim();
+  logBox.textContent = `${msg}\n${logBox.textContent}`.trim();
 }
 
-function makeSlot(container, id, label, pool) {
-  const div = document.createElement('div');
-  div.className = 'slot';
-  const span = document.createElement('span');
-  span.textContent = label;
-  const select = document.createElement('select');
-  select.id = id;
-  pool.forEach((key) => {
-    const opt = document.createElement('option');
-    opt.value = key;
-    opt.textContent = `${materialDb[key].name}（${materialDb[key].cost}金）`;
-    select.appendChild(opt);
-  });
-  div.append(span, select);
-  container.appendChild(div);
+function rand(min, max) {
+  return Math.random() * (max - min) + min;
 }
 
-function setupSlots() {
-  ['地基', '塔身', '塔顶'].forEach((label, idx) => {
-    makeSlot(phase1Slots, `p1-${idx}`, label, ['wood', 'steel', 'concrete']);
-  });
-  ['地基', '2层', '3层', '4层', '塔顶'].forEach((label, idx) => {
-    makeSlot(phase2Slots, `p2-${idx}`, label, Object.keys(materialDb));
-  });
-  const measureSelect = document.querySelector('#measureSelect');
-  Object.keys(materialDb).forEach((k) => {
-    const opt = document.createElement('option');
-    opt.value = k;
-    opt.textContent = materialDb[k].name;
-    measureSelect.appendChild(opt);
-  });
+function dist2(a, b) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return dx * dx + dy * dy;
 }
 
-function towerResult(keys, windEnv) {
-  const mats = keys.map((k) => materialDb[k]);
-  const totalHeight = mats.reduce((a, m) => a + m.h, 0);
-  const totalCost = mats.reduce((a, m) => a + m.cost, 0);
-  const windRes = mats.reduce((a, m) => a + m.wind, 0);
+function nearestCentroidIndex(point) {
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < state.centroids.length; i++) {
+    const d = dist2(point, state.centroids[i]);
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
+}
 
-  for (let i = 0; i < mats.length - 1; i++) {
-    const support = mats[i].s;
-    const aboveWeight = mats.slice(i + 1).reduce((a, m) => a + m.w, 0);
-    if (support < aboveWeight + windEnv) {
-      return { ok: false, reason: `${i + 1}层承重不足（${support} < ${aboveWeight + windEnv}）`, totalHeight, totalCost, windRes };
+function makeRound() {
+  const mode = difficultySelect.value;
+  let config;
+  if (mode === 'easy') config = { k: 2, perCluster: 6 };
+  else if (mode === 'hard') config = { k: 4, perCluster: 7 };
+  else config = { k: 3, perCluster: 6 };
+
+  state.k = config.k;
+  state.points = [];
+  state.centroids = [];
+  state.round = 1;
+  state.assigned = false;
+  state.dragging = null;
+
+  const trueCenters = [];
+  for (let i = 0; i < config.k; i++) {
+    trueCenters.push({ x: rand(100, 760), y: rand(90, 430) });
+  }
+
+  trueCenters.forEach((center, truth) => {
+    for (let i = 0; i < config.perCluster; i++) {
+      state.points.push({
+        x: center.x + rand(-70, 70),
+        y: center.y + rand(-70, 70),
+        truth,
+        cluster: null
+      });
+    }
+  });
+
+  for (let i = 0; i < config.k; i++) {
+    state.centroids.push({ x: rand(80, 780), y: rand(80, 450) });
+  }
+
+  inertiaLabel.textContent = '-';
+  qualityLabel.textContent = '-';
+  accuracyLabel.textContent = '-';
+  roundLabel.textContent = String(state.round);
+  log(`新一局开始：k=${config.k}，样本=${state.points.length}。先拖动质心，再分配。`);
+  draw();
+}
+
+function assignPoints() {
+  if (!state.centroids.length) return;
+  state.points.forEach((p) => {
+    p.cluster = nearestCentroidIndex(p);
+  });
+  state.assigned = true;
+
+  const inertia = calculateInertia();
+  const quality = silhouetteLikeScore();
+  const accuracy = bestMatchAccuracy();
+
+  inertiaLabel.textContent = inertia.toFixed(1);
+  qualityLabel.textContent = quality.toFixed(3);
+  accuracyLabel.textContent = `${(accuracy * 100).toFixed(1)}%`;
+
+  log(`第 ${state.round} 轮分配完成：Inertia=${inertia.toFixed(1)}。`);
+  draw();
+}
+
+function updateCentroids() {
+  if (!state.assigned) {
+    log('请先执行“分配到最近质心”。');
+    return;
+  }
+
+  const groups = Array.from({ length: state.k }, () => []);
+  state.points.forEach((p) => groups[p.cluster].push(p));
+
+  let moved = 0;
+  groups.forEach((g, i) => {
+    if (!g.length) return;
+    const meanX = g.reduce((s, p) => s + p.x, 0) / g.length;
+    const meanY = g.reduce((s, p) => s + p.y, 0) / g.length;
+    moved += Math.sqrt(dist2(state.centroids[i], { x: meanX, y: meanY }));
+    state.centroids[i].x = meanX;
+    state.centroids[i].y = meanY;
+  });
+
+  state.round += 1;
+  roundLabel.textContent = String(state.round);
+  state.assigned = false;
+
+  log(`质心已更新，总移动距离 ${moved.toFixed(2)}。继续“分配→更新”直到收敛。`);
+  draw();
+}
+
+function calculateInertia() {
+  return state.points.reduce((sum, p) => sum + dist2(p, state.centroids[p.cluster]), 0);
+}
+
+function silhouetteLikeScore() {
+  if (!state.points.length) return 0;
+  let total = 0;
+  for (const p of state.points) {
+    const same = state.points.filter((q) => q !== p && q.cluster === p.cluster);
+    const a = same.length
+      ? same.reduce((s, q) => s + Math.sqrt(dist2(p, q)), 0) / same.length
+      : 0;
+
+    let b = Infinity;
+    for (let c = 0; c < state.k; c++) {
+      if (c === p.cluster) continue;
+      const other = state.points.filter((q) => q.cluster === c);
+      if (!other.length) continue;
+      const avg = other.reduce((s, q) => s + Math.sqrt(dist2(p, q)), 0) / other.length;
+      b = Math.min(b, avg);
+    }
+    const s = (b - a) / Math.max(a, b || 1);
+    total += Number.isFinite(s) ? s : 0;
+  }
+  return total / state.points.length;
+}
+
+function bestMatchAccuracy() {
+  const usedTruth = new Set();
+  let correct = 0;
+
+  for (let c = 0; c < state.k; c++) {
+    const clusterPoints = state.points.filter((p) => p.cluster === c);
+    if (!clusterPoints.length) continue;
+
+    const counts = new Map();
+    clusterPoints.forEach((p) => counts.set(p.truth, (counts.get(p.truth) || 0) + 1));
+
+    let bestTruth = null;
+    let bestCount = -1;
+    for (const [truth, count] of counts.entries()) {
+      if (usedTruth.has(truth)) continue;
+      if (count > bestCount) {
+        bestCount = count;
+        bestTruth = truth;
+      }
+    }
+
+    if (bestTruth !== null) {
+      usedTruth.add(bestTruth);
+      correct += bestCount;
     }
   }
 
-  if (windRes <= windEnv) {
-    return { ok: false, reason: `抗风不足（${windRes} <= ${windEnv}）`, totalHeight, totalCost, windRes };
-  }
-
-  return { ok: true, reason: '结构稳定', totalHeight, totalCost, windRes };
+  return correct / state.points.length;
 }
 
-function refreshUi() {
-  phaseLabel.textContent = state.phase === 1 ? '第一阶段（PDCA）' : '第二阶段（DMAIC）';
-  budgetLabel.textContent = state.budget;
-  recordLabel.textContent = state.record;
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#020617';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  for (const p of state.points) {
+    const color = p.cluster === null ? '#94a3b8' : palette[p.cluster % palette.length];
+
+    if (state.showTruth) {
+      ctx.strokeStyle = palette[p.truth % palette.length];
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  state.centroids.forEach((c, i) => {
+    ctx.fillStyle = palette[i % palette.length];
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 2;
+
+    ctx.beginPath();
+    ctx.moveTo(c.x, c.y - 10);
+    ctx.lineTo(c.x + 10, c.y);
+    ctx.lineTo(c.x, c.y + 10);
+    ctx.lineTo(c.x - 10, c.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '12px sans-serif';
+    ctx.fillText(`C${i + 1}`, c.x + 12, c.y - 12);
+  });
 }
 
-setupSlots();
-refreshUi();
-log('欢迎来到塔台质控局。先通过 PDCA 快速试错吧。');
+function getMousePos(evt) {
+  const rect = canvas.getBoundingClientRect();
+  const x = (evt.clientX - rect.left) * (canvas.width / rect.width);
+  const y = (evt.clientY - rect.top) * (canvas.height / rect.height);
+  return { x, y };
+}
 
-
-document.querySelector('#buildBtn').addEventListener('click', () => {
-  const keys = [0, 1, 2].map((i) => document.querySelector(`#p1-${i}`).value);
-  const res = towerResult(keys, 10 + Math.floor(Math.random() * 11));
-  if (res.ok) {
-    state.record = Math.max(state.record, res.totalHeight);
-    log(`PDCA成功：高度${res.totalHeight}，成本${res.totalCost}。最高纪录刷新到 ${state.record}。`);
-  } else {
-    log(`PDCA失败：${res.reason}。高度${res.totalHeight}。`);
-  }
-  refreshUi();
-});
-
-document.querySelector('#unlockPhase2Btn').addEventListener('click', () => {
-  state.phase = 2;
-  document.querySelector('#phase1Panel').classList.add('hidden');
-  document.querySelector('#phase2Panel').classList.remove('hidden');
-  log('危机降临：进入第二阶段。每次最终施工扣 500 金币，先用 DMAIC 工具箱。');
-  refreshUi();
-});
-
-document.querySelector('#ctqBtn').addEventListener('click', () => {
-  const input = document.querySelector('#ctqInput').value;
-  const normalized = input.replace(/\s/g, '').toLowerCase();
-  const ok = normalized.includes('高度>100') && normalized.includes('成本<5000') && normalized.includes('抗风>50');
-  if (ok) {
-    state.ctqDone = true;
-    document.querySelector('#ctqResult').textContent = 'CTQ 提取成功：目标已锁定。';
-  } else {
-    document.querySelector('#ctqResult').textContent = 'CTQ 不完整，请包含高度>100、成本<5000、抗风>50。';
+canvas.addEventListener('mousedown', (evt) => {
+  const m = getMousePos(evt);
+  for (let i = 0; i < state.centroids.length; i++) {
+    if (Math.sqrt(dist2(m, state.centroids[i])) < 14) {
+      state.dragging = i;
+      return;
+    }
   }
 });
 
-document.querySelector('#measureBtn').addEventListener('click', () => {
-  if (state.budget < 50) return log('预算不足，无法鉴定。');
-  const k = document.querySelector('#measureSelect').value;
-  state.budget -= 50;
-  state.measured.add(k);
-  const m = materialDb[k];
-  const line = `${m.name}: H${m.h}, W${m.w}, S${m.s}, 抗风${m.wind}, 成本${m.cost}`;
-  document.querySelector('#measureLog').textContent += `${line}\n`;
-  refreshUi();
+canvas.addEventListener('mousemove', (evt) => {
+  if (state.dragging === null) return;
+  const m = getMousePos(evt);
+  state.centroids[state.dragging].x = Math.max(12, Math.min(canvas.width - 12, m.x));
+  state.centroids[state.dragging].y = Math.max(12, Math.min(canvas.height - 12, m.y));
+  draw();
 });
 
-document.querySelector('#analysisData').textContent = [
-  '记录1：全普通钢 -> 塌了（承重边界不足）',
-  '记录2：底层钛合金+上层木材 -> 不塌，但被风吹断',
-  '记录3：全钛合金 -> 稳定，但成本超标'
-].join('\n');
-
-document.querySelector('#analyzeBtn').addEventListener('click', () => {
-  const selected = document.querySelector('input[name="rootCause"]:checked')?.value;
-  if (selected === 'b') {
-    state.analyzeDone = true;
-    document.querySelector('#analyzeResult').textContent = '分析正确：头轻脚重是关键原则。';
-  } else {
-    document.querySelector('#analyzeResult').textContent = '分析不正确，请重试。';
-  }
+window.addEventListener('mouseup', () => {
+  if (state.dragging !== null) log('已拖动质心位置。可以点击“分配到最近质心”。');
+  state.dragging = null;
 });
 
-document.querySelector('#finalBuildBtn').addEventListener('click', () => {
-  if (!state.ctqDone || !state.analyzeDone) return log('请先完成 Define 与 Analyze。');
-  if (state.budget < 500) return log('预算不足，无法最终施工。');
-  state.budget -= 500;
-
-  const keys = [0, 1, 2, 3, 4].map((i) => document.querySelector(`#p2-${i}`).value);
-  const res = towerResult(keys, 50);
-  const pass = res.ok && res.totalHeight > 100 && res.totalCost < 5000;
-  state.latestFinalTower = { keys, ...res, pass };
-  if (pass) {
-    log(`最终施工成功：高度${res.totalHeight}，抗风${res.windRes}，成本${res.totalCost}。`);
-    document.querySelector('#finalBuildResult').textContent = '方案通过约束。进入 Control 验证。';
-  } else {
-    log(`最终施工失败：${res.reason}；高度${res.totalHeight}，抗风${res.windRes}，成本${res.totalCost}。`);
-    document.querySelector('#finalBuildResult').textContent = '方案未通过，请继续优化。';
-  }
-  refreshUi();
+document.querySelector('#newRoundBtn').addEventListener('click', makeRound);
+document.querySelector('#assignBtn').addEventListener('click', assignPoints);
+document.querySelector('#updateBtn').addEventListener('click', updateCentroids);
+document.querySelector('#toggleTruthBtn').addEventListener('click', () => {
+  state.showTruth = !state.showTruth;
+  draw();
 });
 
-document.querySelector('#buySopBtn').addEventListener('click', () => {
-  if (state.sop) return;
-  if (state.budget < 200) return log('预算不足，无法购买 SOP。');
-  state.budget -= 200;
-  state.sop = true;
-  refreshUi();
-  log('已购买 SOP 卡：公差波动缩小。');
-});
-
-document.querySelector('#massRunBtn').addEventListener('click', () => {
-  if (!state.latestFinalTower?.pass) return log('请先提交一个通过 Improve 的方案。');
-  let success = 0;
-  const baseWind = state.latestFinalTower.windRes;
-  const noise = state.sop ? 2 : 15;
-  for (let i = 0; i < 100; i++) {
-    const drift = Math.floor(Math.random() * (noise * 2 + 1)) - noise;
-    const finalWind = baseWind + drift;
-    if (finalWind > 50) success += 1;
-  }
-  const rate = ((success / 100) * 100).toFixed(0);
-  const msg = `批量生产完成：良品 ${success}/100（${rate}%），波动范围 ±${noise}。`;
-  document.querySelector('#controlResult').textContent = msg;
-  log(msg);
-});
+makeRound();
