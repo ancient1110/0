@@ -12,6 +12,15 @@ const interferenceOptions = {
   size: ['sizeSm', 'sizeLg']
 };
 
+const interferenceOrder = ['glow', 'tintShift', 'morph', 'size'];
+
+const interferenceLabels = {
+  glow: '荧光强弱',
+  tintShift: '微弱色差',
+  morph: '微弱形变',
+  size: '大小差异'
+};
+
 const difficultyConfig = {
   easy: { label: '简单', total: 8, speciesCount: 3, interferenceCount: 1, binExtra: 1 },
   normal: { label: '普通', total: 12, speciesCount: 3, interferenceCount: 2, binExtra: 2 },
@@ -29,7 +38,8 @@ const state = {
   selectedId: null,
   motions: new Map(),
   rafId: null,
-  levelCompleted: false
+  levelCompleted: false,
+  activeInterferences: []
 };
 
 const scoreEl = document.querySelector('#score');
@@ -46,9 +56,7 @@ function log(msg) {
 
 function checkProtocol() {
   const isFileProtocol = window.location.protocol === 'file:';
-  if (protocolWarnEl) {
-    protocolWarnEl.hidden = !isFileProtocol;
-  }
+  if (protocolWarnEl) protocolWarnEl.hidden = !isFileProtocol;
 }
 
 function pick(arr) {
@@ -61,6 +69,11 @@ function pickSome(arr, count) {
 
 function rand(min, max) {
   return Math.random() * (max - min) + min;
+}
+
+function getSelectedCard() {
+  if (!state.selectedId) return null;
+  return document.querySelector(`.sample[data-id="${state.selectedId}"]`);
 }
 
 const allSpecies = [];
@@ -76,18 +89,12 @@ for (const shape of factors.shape) {
 
 function clearSelection() {
   state.selectedId = null;
-  document.querySelectorAll('.sample.selected').forEach((el) => {
-    el.classList.remove('selected');
-  });
+  document.querySelectorAll('.sample.selected').forEach((el) => el.classList.remove('selected'));
 }
 
 function clearCheckMarks() {
-  document.querySelectorAll('.sample').forEach((card) => {
-    card.classList.remove('bad', 'agitated');
-  });
-  document.querySelectorAll('.bin').forEach((bin) => {
-    bin.classList.remove('warning');
-  });
+  document.querySelectorAll('.sample').forEach((card) => card.classList.remove('bad', 'agitated'));
+  document.querySelectorAll('.bin').forEach((bin) => bin.classList.remove('warning'));
 }
 
 function selectCard(card) {
@@ -128,22 +135,19 @@ function releaseCardToArena(card) {
   arena.appendChild(card);
   setMotionForCard(card);
   clearSelection();
-
-  if (prevBin && prevBin.classList.contains('bin')) {
-    checkRealTimePurity(prevBin);
-  }
+  if (prevBin && prevBin.classList.contains('bin')) checkRealTimePurity(prevBin);
 }
 
 function checkRealTimePurity(bin) {
   const remain = [...bin.querySelectorAll('.sample')];
   if (remain.length === 0) {
     bin.classList.remove('warning');
-  } else {
-    const isPure = remain.every((c) => c.dataset.answer === remain[0].dataset.answer);
-    if (isPure) {
-      bin.classList.remove('warning');
-      remain.forEach((c) => c.classList.remove('agitated', 'bad'));
-    }
+    return;
+  }
+  const isPure = remain.every((c) => c.dataset.answer === remain[0].dataset.answer);
+  if (isPure) {
+    bin.classList.remove('warning');
+    remain.forEach((c) => c.classList.remove('agitated', 'bad'));
   }
 }
 
@@ -152,12 +156,6 @@ function renderBins(binCount) {
   for (let i = 0; i < binCount; i += 1) {
     const div = document.createElement('div');
     div.className = 'bin';
-    div.addEventListener('click', () => {
-      if (!state.selectedId) return;
-      const card = document.querySelector(`.sample[data-id="${state.selectedId}"]`);
-      if (!card) return;
-      moveCardToBin(card, div);
-    });
     binRow.appendChild(div);
   }
 }
@@ -196,6 +194,19 @@ function buildCard(sample) {
 
   card.appendChild(buildBacteriaVisual(sample));
   card.addEventListener('click', (e) => {
+    const parentBin = card.parentElement?.classList.contains('bin') ? card.parentElement : null;
+    const selectedCard = getSelectedCard();
+    const isDropAction = parentBin
+      && selectedCard
+      && selectedCard !== card
+      && selectedCard.classList.contains('inArena');
+
+    if (isDropAction) {
+      e.stopPropagation();
+      moveCardToBin(selectedCard, parentBin);
+      return;
+    }
+
     e.stopPropagation();
     if (state.selectedId === card.dataset.id) {
       clearSelection();
@@ -225,11 +236,15 @@ function animateArena() {
     card.style.top = `${m.y}px`;
     card.style.transform = `rotate(${m.angle}deg)`;
   });
+
   state.rafId = requestAnimationFrame(animateArena);
 }
 
 function stopAnimation() {
-  if (state.rafId) { cancelAnimationFrame(state.rafId); state.rafId = null; }
+  if (state.rafId) {
+    cancelAnimationFrame(state.rafId);
+    state.rafId = null;
+  }
 }
 
 function startAnimation() {
@@ -239,18 +254,16 @@ function startAnimation() {
   animateArena();
 }
 
-function applyInterference(baseSample, interferenceCount) {
+function applyInterference(baseSample, activeInterferences) {
   const enhanced = {
     ...baseSample,
+    glow: 'low',
     tintShift: '',
     morph: '',
     sizeVariant: ''
   };
 
-  const pool = ['glow', 'tintShift', 'morph', 'size'];
-  const active = pickSome(pool, Math.min(interferenceCount, pool.length));
-
-  active.forEach((item) => {
+  activeInterferences.forEach((item) => {
     if (item === 'glow') enhanced.glow = pick(factors.glow);
     if (item === 'tintShift') enhanced.tintShift = pick(interferenceOptions.tintShift);
     if (item === 'morph') enhanced.morph = pick(interferenceOptions.morph);
@@ -266,6 +279,7 @@ function refreshSamples() {
   state.selectedId = null;
   state.levelCompleted = false;
   perfectBannerEl.hidden = true;
+  state.activeInterferences = interferenceOrder.slice(0, config.interferenceCount);
 
   const shuffledSpecies = [...allSpecies].sort(() => Math.random() - 0.5);
   const chosenSpecies = shuffledSpecies.slice(0, config.speciesCount);
@@ -278,11 +292,10 @@ function refreshSamples() {
       grouping: sp.grouping,
       coreColor: sp.coreColor,
       grain: sp.grain,
-      glow: pick(factors.glow),
       answer: `${sp.shape}-${sp.grouping}-${sp.coreColor}-${sp.grain}`
     };
 
-    state.samples.push(applyInterference(baseSample, config.interferenceCount));
+    state.samples.push(applyInterference(baseSample, state.activeInterferences));
   }
 
   state.samples.sort(() => Math.random() - 0.5);
@@ -295,7 +308,8 @@ function refreshSamples() {
   clearCheckMarks();
   accEl.textContent = '-';
   currentLevelEl.textContent = config.label;
-  log(`已刷新样本：${config.label}（样本${config.total}/物种${config.speciesCount}/干扰项${config.interferenceCount}）`);
+  const names = state.activeInterferences.map((k) => interferenceLabels[k]).join(' / ');
+  log(`已刷新样本：${config.label}（样本${config.total}/物种${config.speciesCount}/干扰${config.interferenceCount}项：${names}）`);
 }
 
 function checkAnswer() {
@@ -320,7 +334,6 @@ function checkAnswer() {
   document.querySelectorAll('.bin').forEach((bin) => {
     const binCards = [...bin.querySelectorAll('.sample')];
     if (binCards.length === 0) return;
-
     const isPure = binCards.every((c) => c.dataset.answer === binCards[0].dataset.answer);
     if (!isPure) {
       bin.classList.add('warning');
@@ -350,11 +363,9 @@ function checkAnswer() {
   } else {
     perfectBannerEl.hidden = true;
     let msg = `当前分类进度 ${(acc * 100).toFixed(0)}%。`;
-    if (mixedBinsCount > 0) {
-      msg += `有 ${mixedBinsCount} 个分区发生冲突（已报警抖动）。`;
-    } else {
-      msg += '目前分区没有混杂，但还有同类未归并或还在主区域。';
-    }
+    msg += mixedBinsCount > 0
+      ? `有 ${mixedBinsCount} 个分区发生冲突（已报警抖动）。`
+      : '目前分区没有混杂，但还有同类未归并或还在主区域。';
     log(msg);
   }
 
@@ -374,14 +385,21 @@ document.querySelector('#checkBtn').addEventListener('click', checkAnswer);
 document.querySelectorAll('.diffBtn').forEach((btn) => {
   btn.addEventListener('click', () => setDifficulty(btn.dataset.level));
 });
-arena.addEventListener('click', () => {
-  if (!state.selectedId) return;
-  const card = document.querySelector(`.sample[data-id="${state.selectedId}"]`);
-  if (!card) return;
-  if (card.parentElement?.classList.contains('bin')) {
-    releaseCardToArena(card);
-  }
+
+binRow.addEventListener('click', (e) => {
+  const bin = e.target.closest('.bin');
+  if (!bin) return;
+  const selectedCard = getSelectedCard();
+  if (!selectedCard || !selectedCard.classList.contains('inArena')) return;
+  moveCardToBin(selectedCard, bin);
 });
+
+arena.addEventListener('click', () => {
+  const card = getSelectedCard();
+  if (!card) return;
+  if (card.parentElement?.classList.contains('bin')) releaseCardToArena(card);
+});
+
 window.addEventListener('beforeunload', stopAnimation);
 
 checkProtocol();
