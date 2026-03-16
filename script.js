@@ -63,6 +63,10 @@ function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function pickSome(arr, count) {
+  return [...arr].sort(() => Math.random() - 0.5).slice(0, count);
+}
+
 function rand(min, max) {
   return Math.random() * (max - min) + min;
 }
