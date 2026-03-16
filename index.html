@@ -3,81 +3,51 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>塔台质控局 (Tower QC Bureau)</title>
+  <title>聚类训练营：K-Means 小游戏</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <main class="app">
     <header>
-      <h1>塔台质控局</h1>
-      <p class="subtitle">纯文本/数值逻辑驱动的 PDCA + DMAIC 教学桌游原型</p>
+      <h1>聚类训练营：K-Means 小游戏</h1>
+      <p class="subtitle">拖动质心、分配样本、迭代更新，直观理解聚类。</p>
     </header>
 
-    <section class="stats">
-      <div>阶段：<strong id="phaseLabel">第一阶段（PDCA）</strong></div>
-      <div>金币预算：<strong id="budgetLabel">10000</strong></div>
-      <div>最高高度：<strong id="recordLabel">0</strong></div>
+    <section class="panel controls">
+      <button id="newRoundBtn">新一局</button>
+      <button id="assignBtn">1) 分配到最近质心</button>
+      <button id="updateBtn">2) 更新质心（取均值）</button>
+      <button id="toggleTruthBtn">显示/隐藏真实簇</button>
+      <label>
+        难度
+        <select id="difficulty">
+          <option value="easy">简单（2簇，12点）</option>
+          <option value="normal" selected>普通（3簇，18点）</option>
+          <option value="hard">困难（4簇，28点）</option>
+        </select>
+      </label>
     </section>
 
-    <section class="panel" id="phase1Panel">
-      <h2>第一阶段：PDCA 盲盒试错</h2>
-      <p>为 3 层塔台选择材料（只显示名称和成本），然后执行建造。</p>
-      <div class="slots" id="phase1Slots"></div>
-      <button id="buildBtn">执行建造</button>
-      <button id="unlockPhase2Btn">进入第二阶段</button>
-    </section>
-
-    <section class="panel hidden" id="phase2Panel">
-      <h2>第二阶段：DMAIC 质量迷局</h2>
-      <p>目标：5 层，总高度 &gt; 100，成本 &lt; 5000，抗风值 &gt; 50。</p>
-
-      <details open>
-        <summary>D - Define（提取 CTQ）</summary>
-        <p>输入你提取的关键指标（任意顺序，逗号分隔），例如：高度&gt;100,成本&lt;5000,抗风&gt;50</p>
-        <input id="ctqInput" placeholder="请输入 CTQ" />
-        <button id="ctqBtn">提交 CTQ</button>
-        <div id="ctqResult"></div>
-      </details>
-
-      <details>
-        <summary>M - Measure（材料鉴定，50 金币/次）</summary>
-        <div class="row">
-          <select id="measureSelect"></select>
-          <button id="measureBtn">鉴定材料</button>
-        </div>
-        <pre id="measureLog" class="log"></pre>
-      </details>
-
-      <details>
-        <summary>A - Analyze（失败记录推理）</summary>
-        <pre class="log" id="analysisData"></pre>
-        <p>问题：根本原因除了底层承重，还在于？</p>
-        <label><input type="radio" name="rootCause" value="a" /> 使用最贵材料</label>
-        <label><input type="radio" name="rootCause" value="b" /> 顶层重量应尽量低，减小风力杠杆效应</label>
-        <label><input type="radio" name="rootCause" value="c" /> 塔层越多越稳</label>
-        <button id="analyzeBtn">提交分析</button>
-        <div id="analyzeResult"></div>
-      </details>
-
-      <details>
-        <summary>I - Improve（搭建最优方案）</summary>
-        <div class="slots" id="phase2Slots"></div>
-        <button id="finalBuildBtn">最终施工（500 金币）</button>
-        <div id="finalBuildResult"></div>
-      </details>
-
-      <details>
-        <summary>C - Control（波动控制）</summary>
-        <p>可购买 SOP 卡（200 金币），将随机公差从 ±15 降低到 ±2。</p>
-        <button id="buySopBtn">购买 SOP 卡</button>
-        <button id="massRunBtn">批量生产 100 座塔</button>
-        <div id="controlResult"></div>
-      </details>
+    <section class="panel stats">
+      <div>回合：<strong id="roundLabel">1</strong></div>
+      <div>惯性(Inertia)：<strong id="inertiaLabel">-</strong></div>
+      <div>轮廓得分近似：<strong id="qualityLabel">-</strong></div>
+      <div>与真实簇匹配率：<strong id="accuracyLabel">-</strong></div>
     </section>
 
     <section class="panel">
-      <h2>系统战报</h2>
-      <pre id="battleLog" class="log"></pre>
+      <canvas id="board" width="860" height="520" aria-label="聚类画布"></canvas>
+      <p class="hint">操作：先拖动彩色质心到你认为合适的位置，再点“分配→更新”循环。目标是让惯性持续下降。</p>
+    </section>
+
+    <section class="panel">
+      <h2>你学到了什么？</h2>
+      <ul>
+        <li><strong>分配步骤</strong>：每个样本归到最近质心。</li>
+        <li><strong>更新步骤</strong>：质心移动到该簇样本的均值位置。</li>
+        <li><strong>收敛现象</strong>：多轮后质心移动距离会变小，目标函数（惯性）降低。</li>
+      </ul>
+      <pre id="log" class="log">欢迎来到聚类训练营！先点“新一局”，然后拖动质心开始。</pre>
     </section>
   </main>
 
