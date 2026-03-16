@@ -22,3 +22,18 @@ python3 -m http.server 4173
 ```
 
 打开 `http://localhost:4173`。
+
+## 常见问题
+
+如果你看到类似下面的报错：
+
+```
+Unsafe attempt to load URL file:///... 'file:' URLs are treated as unique security origins
+```
+
+说明你是直接双击 `index.html` 用 `file://` 打开的。请改为：
+
+1. 在项目目录运行 `python3 -m http.server 4173`
+2. 浏览器访问 `http://localhost:4173`
+
+这样可以避开浏览器对本地文件的同源策略限制。

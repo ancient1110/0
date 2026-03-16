@@ -29,9 +29,20 @@ const logEl = document.querySelector('#log');
 const arena = document.querySelector('#arena');
 const binRow = document.querySelector('#binRow');
 const levelSel = document.querySelector('#levelSel');
+const protocolWarnEl = document.querySelector('#protocolWarn');
 
 function log(msg) {
   logEl.textContent = `${msg}\n${logEl.textContent}`.trim();
+}
+
+function checkProtocol() {
+  const isFileProtocol = window.location.protocol === 'file:';
+  if (protocolWarnEl) {
+    protocolWarnEl.hidden = !isFileProtocol;
+  }
+  if (isFileProtocol) {
+    log('检测到 file:// 访问。请启动本地 HTTP 服务后访问 http://localhost:4173，避免浏览器同源限制。');
+  }
 }
 
 function pick(arr) {
@@ -338,4 +349,5 @@ arena.addEventListener('click', () => {
 });
 window.addEventListener('beforeunload', stopAnimation);
 
+checkProtocol();
 newLevel();

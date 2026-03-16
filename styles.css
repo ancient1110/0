@@ -19,6 +19,20 @@ body {
 h1, h2 { margin: 0 0 8px; }
 .subtitle { margin: 0; color: var(--soft); }
 
+.protocolWarn {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.protocolWarn code {
+  background: #fef3c7;
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+
 .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 button, select {
   border: 2px solid #93c5fd;
